@@ -1,0 +1,181 @@
+--Q1.Design the complete database + schema + tables for the diagram shown above using appropriate 
+-----data type for every column along with any contraints (checks + PK) mentioned in the task 
+-----description and load the below data into the requisite tables.
+
+
+CREATE OR REPLACE TABLE production.categories(
+category_id INT PRIMARY KEY,
+category_name VARCHAR(225) NOT NULL); 
+
+CREATE OR REPLACE TABLE production.brands(
+brand_id INT PRIMARY KEY,
+brand_name VARCHAR(225) NOT NULL); 
+
+CREATE OR REPLACE TABLE production.products(
+product_id INT PRIMARY KEY,
+product_name VARCHAR(225) NOT NULL,
+brand_id INT NOT NULL,
+category_id INT NOT NULL,
+model_year SMALLINT NOT NULL,
+list_price DECIMAL(10,2) NOT NULL
+);
+
+CREATE  OR REPLACE TABLE production.stocks(
+store_id INT,
+product_id INT,
+quantity INT,
+PRIMARY KEY(store_id, product_id)); 
+
+CREATE  OR REPLACE TABLE sales.customers(
+customer_id INT  PRIMARY KEY,
+first_name VARCHAR(225) NOT NULL,
+last_name VARCHAR(225) NOT NULL,
+phone VARCHAR(25),
+email VARCHAR(225) NOT NULL,
+street VARCHAR(255),
+city VARCHAR(50),
+state VARCHAR(25),
+zip_code VARCHAR(5)); 
+
+CREATE OR REPLACE TABLE sales.stores(
+store_id INT PRIMARY KEY,
+store_name VARCHAR(255) NOT NULL,
+phone VARCHAR(225),
+email VARCHAR(225),
+street VARCHAR(225),
+city VARCHAR(225),
+state VARCHAR(225),
+zip_code VARCHAR(5)); 
+
+CREATE OR REPLACE TABLE sales.staffs(
+staff_id INT PRIMARY KEY,
+first_name VARCHAR(50) NOT NULL,
+last_name VARCHAR(50) NOT NULL,
+email VARCHAR(225) NOT NULL UNIQUE,
+phone VARCHAR(25),
+active tinyint NOT NULL,
+store_id INT NOT NULL,
+manager_id INT); 
+
+CREATE OR REPLACE TABLE sales.orders(
+order_id INT  PRIMARY KEY,
+customer_id INT,
+order_status tinyint NOT NULL,
+order_date DATE NOT NULL,
+required_date DATE NOT NULL,
+shipped_date DATE,
+store_id INT NOT NULL,
+staff_id INT NOT NULL); 
+
+CREATE  OR REPLACE TABLE sales.order_items(
+order_id INT,
+item_id INT,
+product_id INT NOT NULL,
+quantity INT NOT NULL,
+list_price DECIMAL(10,2) NOT NULL,
+discount DECIMAL(4,2) NOT NULL DEFAULT 0,
+PRIMARY KEY (order_id, item_id)); 
+
+--Q2.Once the table has got created , there is a requirement of FOREIGN KEY implementation coming 
+---- into picture where one needs to add(ALTER TABLE COMMAND) below foreign key on the table 
+-----mentioned pointing to another table (READ ABOUT FOREIGN KEY) as :
+
+ALTER TABLE sales.staffs ADD FOREIGN KEY (store_id) REFERENCES sales.stores(store_id);
+ALTER TABLE sales.staffs ADD FOREIGN KEY (manager_id) REFERENCES sales.staffs(staff_id);
+ALTER TABLE production.products ADD FOREIGN KEY (category_id) REFERENCES production.categories(category_id);
+ALTER TABLE production.products ADD FOREIGN KEY (brand_id) REFERENCES production.brands(brand_id);
+ALTER TABLE sales.orders ADD FOREIGN KEY (customer_id) REFERENCES sales.customers(customer_id);
+ALTER TABLE sales.orders ADD FOREIGN KEY (store_id) REFERENCES sales.stores(store_id);
+ALTER TABLE sales.orders ADD FOREIGN KEY (staff_id) REFERENCES sales.staffs(staff_id);
+ALTER TABLE sales.order_items ADD FOREIGN KEY (order_id) REFERENCES sales.orders(order_id);
+ALTER TABLE sales.order_items ADD FOREIGN KEY (product_id) REFERENCES production.products(product_id);
+ALTER TABLE production.stocks ADD FOREIGN KEY (store_id) REFERENCES sales.stores(store_id);
+ALTER TABLE production.stocks ADD FOREIGN KEY (product_id) REFERENCES production.products(product_id); 
+
+--Q3.  Does any of the table has missing or NULL value ? If yes which are those and what are their 
+-------counts ?
+
+SELECT COUNT(*) AS TOT_NULL_VALUES FROM SALES.CUSTOMERS WHERE PHONE IS NULL; 
+
+--Q4.  Does the datasets has any DUPLICATE(idenƟcal rows) ? If yes – can you just keep the 
+-------first record and remove all rest if its possible without using any JOINS or WINDOW 
+-------function.
+
+SELECT COUNT(*) as TOT_ROWS FROM BRANDS; 
+SELECT COUNT(DISTINCT brand_id, brand_name) as TOT_DISTINCT_ROWS FROM BRANDS; 
+
+SELECT COUNT(*) as TOT_ROWS FROM CATEGORIES; 
+SELECT COUNT(DISTINCT CATEGORY_ID, CATEGORY_NAME) as TOT_DISTINCT_ROWS FROM CATEGORIES; 
+
+--Q5. How many unique tables are present in each schema and under each table how many 
+------records are having ?
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ROW_COUNT FROM INFORMATION_SCHEMA.TABLES
+ORDER BY 1 DESC; 
+
+--Q6. How many total serving customer BikeStore has ?
+SELECT COUNT(DISTINCT CUSTOMER_ID) As TOT_SERVING_CUST FROM ORDERS;
+
+--Q7. How many total orders are there ? 
+SELECT COUNT(DISTINCT ORDER_ID) AS TOT_ORDERS FROM ORDERS; 
+
+--Q8. Which store has the highest number of sales ? 
+SELECT STORE_ID, COUNT(ORDER_ID) AS Highest_Sales 
+ FROM SALES.ORDERS 
+ GROUP BY 1 
+ ORDER BY 2 DESC 
+ LIMIT 1; 
+
+ --Q9. Which month the sales was highest and for which store ? 
+SELECT SUBSTR(ORDER_DATE,6,2) AS Month_No, 
+ ORDERS.STORE_ID, 
+ ROUND(SUM(QUANTITY*LIST_PRICE*(1-DISCOUNT)),2) AS TOT_SALES 
+ FROM BIKESTORES.SALES.ORDER_ITEMS, BIKESTORES.SALES.ORDERS 
+ GROUP BY 1,2 
+ ORDER BY 3 DESC 
+ LIMIT 1; 
+
+ --Q10. How many orders each customer has placed (give me top 10 customers) 
+SELECT CUSTOMER_ID, 
+ COUNT(DISTINCT ORDER_ID) AS TOT_ORDERS 
+ FROM BIKESTORES.SALES.ORDERS 
+ GROUP BY 1 
+ ORDER BY 2 DESC 
+ LIMIT 10; 
+
+ --Q11. Which are the TOP 3 selling product ? 
+SELECT PRODUCT_ID, 
+ ROUND(SUM(QUANTITY*LIST_PRICE*(1-DISCOUNT)),2) AS TOT_SALES 
+ FROM BIKESTORES.SALES.ORDER_ITEMS 
+ GROUP BY 1 
+ ORDER BY 2 DESC 
+ LIMIT 3; 
+
+ --Q12. Which was the first and last order placed by the customer who has placed maximum 
+--------number of orders ?
+SELECT CUSTOMER_ID, 
+ MIN(ORDER_ID) AS First_Order, 
+ MAX(ORDER_ID) as Last_Order 
+ FROM BIKESTORES.SALES.ORDERS 
+ GROUP BY 1 
+ ORDER BY COUNT(ORDER_ID) DESC 
+ LIMIT 1; 
+
+ --Q14. Which product has orders more than 200 ? 
+SELECT PRODUCT_ID, COUNT(DISTINCT ORDER_ID) AS TOT_ORDERS 
+ FROM BIKESTORES.SALES.ORDER_ITEMS 
+ GROUP BY 1 
+ HAVING TOT_ORDERS > 200 
+ ORDER BY 2 DESC; 
+
+ --Q15. Add a column TOTAL_PRICE with appropriate data type into the sales.order_items. 
+ALTER TABLE BIKESTORES.SALES.ORDER_ITEMS 
+ ADD COLUMN TOTAL_PRICE DECIMAL(11,2); 
+
+ --Q16. Calculate TOTAL_PRICE = quanƟty * list price and Update the value for all rows in the 
+--------sales.order_items table.
+UPDATE BIKESTORES.SALES.ORDER_ITEMS 
+SET TOTAL_PRICE = ROUND(QUANTITY * LIST_PRICE,2); 
+
+--Q17. What is the value of the TOTAL_PRICE paid for all the sales.order_items ? 
+ SELECT SUM(TOTAL_PRICE) AS TOT_PRICE_PAID FROM BIKESTORES.SALES.ORDER_ITEMS; 
